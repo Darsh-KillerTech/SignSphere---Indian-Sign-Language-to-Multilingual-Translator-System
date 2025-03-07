@@ -3,6 +3,10 @@
 
 TEAM_ID - 35: HandSpeak Dynamos
 
+The below link contains the flutter files, used for the Android Application
+
+https://drive.google.com/drive/folders/1uOtZdlMUXOmdJV_FDYlygSPqAx10QVIy?usp=drive_link
+
 
 OVERVIEW
 
