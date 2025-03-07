@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ texts.title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #e0f7fa; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 120vh;
+            margin: 0;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            font-size: 1.5em; 
+            margin: 10px 0;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 5px solid #333;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        p {
+            font-size: 1.2em;
+            color: #555;
+            text-align: center;
+            margin: 10px 0;
+        }
+        #frameCount {
+            font-weight: bold;
+            color: #000;
+        }
+        .container {
+            background: #ffd0d0;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #777;
+        }
+        .language-selector {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <form action="{{ url_for('set_language') }}" method="post" class="language-selector">
+            <label for="language">Select Language:</label>
+            <select name="language" id="language" onchange="this.form.submit()">
+                <option value="en" {% if texts.title == 'ISL Live Video Feed' %}selected{% endif %}>English</option>
+                <option value="gu" {% if texts.title == 'ISL લાઇવ વિડિઓ ફીડ' %}selected{% endif %}>Gujarati</option>
+                <option value="ta" {% if texts.title == 'ISL நேரடி வீடியோ ஒளிபரப்பு' %}selected{% endif %}>Tamil</option>
+                <option value="hi" {% if texts.title == 'आईएसएल लाइव वीडियो फीड' %}selected{% endif %}>Hindi</option>
+                <option value="te" {% if texts.title == 'ISL లైవ్ వీడియో ఫీడ్' %}selected{% endif %}>Telugu</option>
+                <option value="ml" {% if texts.title == 'ISL തത്സമയ വീഡിയോ ഫീഡ്' %}selected{% endif %}>Malayalam</option>
+                <option value="bn" {% if texts.title == 'আইএসএল লাইভ ভিডিও ফিড' %}selected{% endif %}>Bengali</option>
+            </select>
+        </form>
+        <p>{{ texts.prompt }}</p>
+        <h1>{{ texts.heading }}</h1>
+        <img src="{{ url_for('video_feed') }}" alt="Video Feed">
+        <p>{{ texts.class_name }}: <span id="frameCount">0</span></p>
+        <button onclick="convertToSpeech()">Convert to Speech</button>
+    </div>
+    <script>
+        function updateFrameCount() {
+            fetch('/frame_count')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('frameCount').innerText = data;
+                });
+        }
+        setInterval(updateFrameCount, 1000);
+
+        function convertToSpeech() {
+            fetch('/convert_to_speech')
+                .then(response => response.text())
+                .then(data => {
+                    console.log(data);
+                });
+        }
+    </script>
+</body>
+</html>
