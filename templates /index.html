@@ -1,129 +1,126 @@
-from flask import Flask, render_template, Response, request, redirect, url_for
-import cv2
-from ultralytics import YOLO
-import cvzone
-from deep_translator import GoogleTranslator
-from gtts import gTTS
-import os
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ texts.title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #e0f7fa; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh; /* Adjusted to fit the screen */
+            margin: 0;
+            padding: 0 20px;
+            box-sizing: border-box;
+            overflow: hidden; /* Prevent scrolling */
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            font-size: 1.5em; 
+            margin: 10px 0;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 5px solid #333;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        p {
+            font-size: 1.2em;
+            color: #555;
+            text-align: center;
+            margin: 10px 0;
+        }
+        #frameCount {
+            font-weight: bold;
+            color: #000;
+        }
+        .container {
+            background: #cefcb8;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 100%; /* Ensure container fits within the screen */
+            overflow: hidden; /* Prevent overflow */
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #777;
+        }
+        .language-selector {
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
 
-app = Flask(__name__)
+        button:hover {
+            background-color: #0056b3;
+            box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+        }
+        select {
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            transition: border-color 0.3s ease;
+        }
+        select:hover {
+            border-color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <form action="{{ url_for('set_language') }}" method="post" class="language-selector">
+            <label for="language">Select Language:</label>
+            <select name="language" id="language" onchange="this.form.submit()">
+                <option value="en" {% if texts.title == 'ISL Live Video Feed' %}selected{% endif %}>English</option>
+                <option value="gu" {% if texts.title == 'ISL લાઇવ વિડિઓ ફીડ' %}selected{% endif %}>Gujarati</option>
+                <option value="ta" {% if texts.title == 'ISL நேரடி வீடியோ ஒளிபரப்பு' %}selected{% endif %}>Tamil</option>
+                <option value="hi" {% if texts.title == 'आईएसएल लाइव वीडियो फीड' %}selected{% endif %}>Hindi</option>
+                <option value="te" {% if texts.title == 'ISL లైవ్ వీడియో ఫీడ్' %}selected{% endif %}>Telugu</option>
+                <option value="ml" {% if texts.title == 'ISL തത്സമയ വീഡിയോ ഫീഡ്' %}selected{% endif %}>Malayalam</option>
+                <option value="bn" {% if texts.title == 'আইএসএল লাইভ ভিডিও ফিড' %}selected{% endif %}>Bengali</option>
+            </select>
+        </form>
+        <p>{{ texts.prompt }}</p>
+        <h1>{{ texts.heading }}</h1>
+        <img src="{{ url_for('video_feed') }}" alt="Video Feed">
+        <p>{{ texts.class_name }}: <span id="frameCount">0</span></p>
+        <button onclick="convertToSpeech()">Convert to Speech</button>
+    </div>
+    <script>
+        function updateFrameCount() {
+            fetch('/frame_count')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('frameCount').innerText = data;
+                });
+        }
+        setInterval(updateFrameCount, 1000);
 
-model = YOLO("best.pt")
-names = model.names
-cap = cv2.VideoCapture(0)
-count = 0
-c = ""
-language = "en"
-
-texts = {
-    "en": {
-        "title": "ISL Live Video Feed",
-        "heading": "Live Video Capturing of Indian Sign Language",
-        "prompt": "Are you ready for the seamless communication?",
-        "class_name": "Class Name"
-    },
-    "gu": {
-        "title": "ISL લાઇવ વિડિઓ ફીડ",
-        "heading": "ભારતીય સંકેત ભાષાના લાઇવ વિડિઓ કૅપ્ચરિંગ",
-        "prompt": "શું તમે નિરંતર સંચાર માટે તૈયાર છો?",
-        "class_name": "વર્ગ નામ"
-    },
-    "ta": {
-        "title": "ISL நேரடி வீடியோ ஒளிபரப்பு",
-        "heading": "இந்திய கையெழுத்து மொழியின் நேரடி வீடியோ பதிவு",
-        "prompt": "நீங்கள் இடையறாத தொடர்புக்கு தயாரா?",
-        "class_name": "வகுப்பு பெயர்"
-    },
-    "hi": {
-        "title": "आईएसएल लाइव वीडियो फीड",
-        "heading": "भारतीय सांकेतिक भाषा की लाइव वीडियो कैप्चरिंग",
-        "prompt": "क्या आप निर्बाध संचार के लिए तैयार हैं?",
-        "class_name": "वर्ग नाम"
-    },
-    "te": {
-        "title": "ISL లైవ్ వీడియో ఫీడ్",
-        "heading": "భారతీయ సంకేత భాష యొక్క లైవ్ వీడియో క్యాప్చరింగ్",
-        "prompt": "మీరు నిరంతర కమ్యూనికేషన్‌కు సిద్ధంగా ఉన్నారా?",
-        "class_name": "తరగతి పేరు"
-    },
-    "ml": {
-        "title": "ISL തത്സമയ വീഡിയോ ഫീഡ്",
-        "heading": "ഇന്ത്യൻ സൈൻ ഭാഷയുടെ തത്സമയ വീഡിയോ ക്യാപ്ചറിംഗ്",
-        "prompt": "നിരന്തരമായ ആശയവിനിമയത്തിന് നിങ്ങൾ തയ്യാറാണോ?",
-        "class_name": "ക്ലാസ് നാമം"
-    },
-    "bn": {
-        "title": "আইএসএল লাইভ ভিডিও ফিড",
-        "heading": "ভারতীয় সাইন ভাষার লাইভ ভিডিও ক্যাপচারিং",
-        "prompt": "আপনি কি নিরবচ্ছিন্ন যোগাযোগের জন্য প্রস্তুত?",
-        "class_name": "শ্রেণীর নাম"
-    }
-}
-
-def translate_class_name(class_name, lang):
-    translated = GoogleTranslator(source='auto', target=lang).translate(class_name)
-    return translated
-
-def generate_frames():
-    global count, c
-    while True:
-        ret, frame = cap.read()
-        count += 1
-        if count % 2 != 0:
-            continue
-        if not ret:
-            break
-        
-        frame = cv2.resize(frame, (1020, 550))
-        results = model.track(frame, persist=True)
-        
-        if results[0].boxes is not None and results[0].boxes.id is not None:
-            boxes = results[0].boxes.xyxy.int().cpu().tolist()  
-            class_ids = results[0].boxes.cls.int().cpu().tolist()  
-            track_ids = results[0].boxes.id.int().cpu().tolist()  
-            confidences = results[0].boxes.conf.cpu().tolist()  
-            
-            for box, class_id, track_id, conf in zip(boxes, class_ids, track_ids, confidences):
-                global c
-                c = names[class_id]
-                x1, y1, x2, y2 = box
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cvzone.putTextRect(frame, f'{c}', (x1, y1), 1, 1)
-
-        ret, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-@app.route('/')
-def index():
-    global language
-    return render_template("index.html", texts=texts[language])
-
-@app.route('/video_feed')
-def video_feed():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route('/frame_count')
-def frame_count():
-    global c, language
-    translated = translate_class_name(c, language)
-    return str(translated)
-
-@app.route('/convert_to_speech')
-def convert_to_speech():
-    global c, language
-    translated = translate_class_name(c, language)
-    tts = gTTS(text=translated, lang=language)
-    tts.save("speech.mp3")
-    os.system("start speech.mp3")
-    return "Speech conversion done"
-
-@app.route('/set_language', methods=['POST'])
-def set_language():
-    global language
-    language = request.form['language']
-    return redirect(url_for('index'))
-
-if __name__ == "__main__":
-    app.run(debug=True)
+        function convertToSpeech() {
+            fetch('/convert_to_speech')
+                .then(response => response.text())
+                .then(data => {
+                    console.log(data);
+                });
+        }
+    </script>
+</body>
+</html>
