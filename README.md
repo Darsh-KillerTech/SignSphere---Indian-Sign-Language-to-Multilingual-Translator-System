@@ -1,5 +1,7 @@
-# SignSphere---Indian-Sign-Language-to-Multilingual-Translator-System
+# TEAM 35 - SignSphere---Indian-Sign-Language-to-Multilingual-Translator-System
 
+
+TEAM_ID - 35: HandSpeak Dynamos
 
 
 OVERVIEW
